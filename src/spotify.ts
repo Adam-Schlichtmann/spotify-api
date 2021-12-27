@@ -15,74 +15,133 @@ import {
   UsersEndpoints,
 } from "./endpoints";
 import { cleanParams, fillInEndpoint } from "./helpers/endpointUtils";
-import { Album, Artist, BaseReturn, Category, Track } from "./types";
+import {
+  Album,
+  Artist,
+  AuthTypes,
+  BaseReturn,
+  Category,
+  LoginResponse,
+  Options,
+  Scope,
+  Track,
+} from "./types";
 
 const TOKEN_URI = "https://accounts.spotify.com/api/token";
 const BASE_URI = "https://api.spotify.com";
-
-type Credentials = {
-  clientId: string;
-  clientSecret: string;
-};
-
-type LoginResponse = {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-};
 
 class Spotify {
   token?: LoginResponse & {
     expiresAt: number;
   };
-  credentials: Credentials;
-  constructor(credentials: Credentials) {
-    if (!credentials || !credentials.clientId || !credentials.clientSecret) {
-      throw new Error(
-        'Could not initialize Spotify client. You must supply an object containing your Spotify client "id" and "secret".'
-      );
-    }
-    this.credentials = {
-      clientId: credentials.clientId,
-      clientSecret: credentials.clientSecret,
-    };
+  /**
+   * ID of the app
+   */
+  clientID: string;
+  /**
+   * Secret of the app
+   */
+  clientSecret: string;
+  /**
+   * Redirect URI when using Authorization Code Flow
+   *
+   * @default undefined
+   */
+  redirectURI?: string;
+  /**
+   * Permission scopes to allow when using Authorization Flow
+   *
+   * @default only publicly available data is available
+   */
+  scopes?: Scope[];
+  /**
+   * Require the User to re-approve the app on every login
+   *
+   * @default false
+   */
+  requireDialog: boolean;
+  /**
+   * Authorization method to use
+   */
+  authorization: AuthTypes;
+
+  constructor({
+    authorization,
+    clientID,
+    clientSecret,
+    redirectURI,
+    scopes,
+    requireDialog,
+  }: Options) {
+    this.authorization = authorization;
+    this.clientID = clientID;
+    this.clientSecret = clientSecret;
+    this.redirectURI = redirectURI;
+    this.requireDialog = !!requireDialog;
+    this.scopes = scopes;
+    if (this.authorization === "client") this.auth.loginClientCredentials();
+    if (this.authorization === "auth_flow") this.auth.loginAuthorizationCode();
+    if (this.authorization === "implicit") this.auth.loginImplicitGrant();
   }
 
-  /**
-   * Generic Login for client credentials method of auth
-   *
-   * @returns Promise
-   */
-  login = () =>
-    axios
-      .post<LoginResponse>(
-        TOKEN_URI,
-        qs.stringify({ grant_type: "client_credentials" }),
-        {
-          headers: {
-            Authorization:
-              "Basic " +
-              Buffer.from(
-                this.credentials.clientId + ":" + this.credentials.clientSecret,
-                "ascii"
-              ).toString("base64"),
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-        }
-      )
-      .then((resp) => {
-        if (resp.status === 200) {
-          this.token = {
-            ...resp.data,
-            expiresAt: new Date().getTime() + resp.data.expires_in,
-          };
-          console.log(this.token);
-        }
-      })
-      .catch((e) => {
-        throw e;
-      });
-
+  auth = {
+    loginClientCredentials: () =>
+      axios
+        .post<LoginResponse>(
+          TOKEN_URI,
+          qs.stringify({ grant_type: "client_credentials" }),
+          {
+            headers: {
+              Authorization:
+                "Basic " +
+                Buffer.from(
+                  this.clientID + ":" + this.clientSecret,
+                  "ascii"
+                ).toString("base64"),
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+          }
+        )
+        .then((resp) => {
+          if (resp.status === 200) {
+            this.token = {
+              ...resp.data,
+              expiresAt: new Date().getTime() + resp.data.expires_in,
+            };
+            console.log(this.token);
+          }
+        })
+        .catch((e) => {
+          throw e;
+        }),
+    /**
+     * Incomplete
+     * @
+     */
+    loginAuthorizationCode: async () => {
+      try {
+        const requestResponse = await axios.get(
+          `${BASE_URI}/authorize${qs.stringify({
+            client_id: this.clientID,
+            response_type: "code",
+            redirect_uri: this.redirectURI,
+            state: undefined,
+            scope: this.scopes,
+            show_dialog: this.requireDialog,
+          })}`
+        );
+        console.log(requestResponse);
+      } catch (e) {
+        console.log(e);
+        // @ts-ignore
+        console.log(e.response.data);
+      }
+    },
+    /**
+     * TODO: Create
+     */
+    loginImplicitGrant: () => {},
+  };
   /**
    * Check if authentication is still valid
    *
@@ -104,21 +163,6 @@ class Spotify {
         }
       : undefined;
 
-  replaceEndpointArgs = (
-    endpoint: string,
-    endpointArgs: Record<string, string | number | string[]>
-  ) => {
-    let newEndpoint = endpoint;
-    Object.entries(endpointArgs).forEach(([key, value]) => {
-      let qsValue = "";
-      if (Array.isArray(value)) qsValue = qs.stringify(value.join(","));
-      else qsValue = value.toString();
-
-      newEndpoint = newEndpoint.replace(`{${key}}`, qsValue);
-    });
-    return newEndpoint;
-  };
-
   /**
    * Generic request function to make a request to spotify
    *
@@ -134,9 +178,7 @@ class Spotify {
     params?: Record<string, unknown>,
     body?: Record<string, unknown>
   ): Promise<AxiosResponse<T>> => {
-    if (!this.isAuthenticationValid()) {
-      await this.login();
-    }
+    // Should be checking if auth is valid
 
     const queryString = qs.stringify(cleanParams(endpoint, params ?? {}));
     const fullEndpoint = `${BASE_URI}${fillInEndpoint(endpoint, params)}${
