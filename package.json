@@ -1,38 +1,46 @@
 {
-  "name": "spotify-api",
-  "version": "1.0.0",
+  "author": "Adam Schlichtmann",
+  "ava": {
+    "extensions": [
+      "ts"
+    ],
+    "failFast": true,
+    "failWithoutAssertions": false,
+    "files": [
+      "**/*.test.ts"
+    ],
+    "require": [
+      "ts-node/register"
+    ]
+  },
+  "dependencies": {
+    "@types/node": "^17.0.1",
+    "@types/qs": "^6.9.7",
+    "axios": "^0.24.0",
+    "qs": "^6.10.2",
+    "typescript": "^4.5.4"
+  },
   "description": "Spotify web api",
+  "devDependencies": {
+    "ava": "^3.15.0",
+    "ts-node": "^10.4.0"
+  },
+  "homepage": "https://github.com/Adam-Schlichtmann/spotify-api",
+  "keywords": [
+    "spotify",
+    "api"
+  ],
+  "license": "ISC",
   "main": "index.ts",
+  "name": "spotify-api",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Adam-Schlichtmann/spotify-api"
+  },
   "scripts": {
     "build": "yarn tsc",
     "start": "yarn build && node ./bin/index.js",
     "test": "ava"
   },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@types/node": "^17.0.1",
-    "@types/qs": "^6.9.7",
-    "axios": "^0.24.0",
-    "node-spotify-api": "^1.1.1",
-    "qs": "^6.10.2",
-    "typescript": "^4.5.4"
-  },
-  "devDependencies": {
-    "ava": "^3.15.0",
-    "ts-node": "^10.4.0"
-  },
-  "ava": {
-    "files": [
-      "**/*.test.ts"
-    ],
-    "failFast": true,
-    "failWithoutAssertions": false,
-    "extensions": [
-      "ts"
-    ],
-    "require": [
-      "ts-node/register"
-    ]
-  }
+  "version": "0.0.1"
 }
